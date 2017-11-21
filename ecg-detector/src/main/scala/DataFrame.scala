@@ -16,13 +16,7 @@ class DataFrame{
   // val SAMPLES = 200000
   // val scale: Double = 1 / 200.0 // Mv
   //  val rootDir = "FileStore/fxo/ted/"
-  val WINDOW = 32
-  var windowingF  =  new Array[Double](WINDOW)   //differs of Array[Double](WINDOW) uajj
 
-  for ( i <- 0 until WINDOW) {
-      val y = Math.sin(Math.PI * i / (WINDOW - 1.0));
-      windowingF(i)=  y * y
-    }
   def process ( wSize: Int, frame : Array[Double] , model:KMeansModel) : Array[Double] = {
 
     // Split frame in WINDOW size windows
@@ -39,7 +33,7 @@ class DataFrame{
       var p = i*wSize/2
       var signalWindow = frame.slice(p, p+wSize  )
 
-      var tapWindow = (signalWindow,windowingF).zipped.map(_*_)   // multiple vector item by item
+      var tapWindow = (signalWindow,DataFrame.windowingF).zipped.map(_*_)   // multiple vector item by item
       val wNorm = Vectors.norm(Vectors.dense(tapWindow) , 2)
       tapWindow = tapWindow.map( x => x/wNorm)
 
@@ -79,5 +73,14 @@ class DataFrame{
       }
     }
     ret.toArray
+  }
+}
+object DataFrame {
+  val WINDOW = 32
+  var windowingF  =  new Array[Double](WINDOW)   //differs of Array[Double](WINDOW) uahhh!!
+
+  for ( i <- 0 until WINDOW) {
+    val y = Math.sin(Math.PI * i / (WINDOW - 1.0));
+    windowingF(i)=  y * y
   }
 }
