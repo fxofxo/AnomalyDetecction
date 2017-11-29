@@ -3,7 +3,7 @@ package ecg
 import org.apache.spark.mllib.clustering.KMeansModel
 import org.apache.spark.mllib.linalg.Vectors
 
-object ecgFrame {
+object ECGframe {
 
   // CLass primary constructor
   // val STEP = 2
@@ -16,7 +16,7 @@ object ecgFrame {
   var windowingF  =  new Array[Double](windowSize)   //differs of Array[Double](WINDOW) uahhh!!
 
   for ( i <- 0 until windowSize) {
-    val y = Math.sin(Math.PI * i / (windowSize - 1.0));
+    val y = Math.sin(Math.PI * i / (windowSize - 1.0))
     windowingF(i)=  y * y
   }
 

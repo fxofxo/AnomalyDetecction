@@ -9,7 +9,7 @@
 
 package ecg
 
-import com.google.gson.JsonObject
+
 import fxo.utils.BigQueryDB
 
 
@@ -37,15 +37,7 @@ object Detector {
     val y = Math.sin(Math.PI * i / (WINDOW - 1.0));
     windowingF(i) = y * y
   }
-  // Helper to convert (word, count) tuples to JsonObjects.
-  def convert2Json(pair: (String, Long)) : JsonObject = {
-    val word = pair._1
-    val count = pair._2
-    val jsonObject = new JsonObject()
-    jsonObject.addProperty("word", word)
-    jsonObject.addProperty("word_count", count)
-    jsonObject
-  }
+
 
   //def convertToJson(record: (String, Any, Any, Any)) = ???
 
@@ -84,11 +76,11 @@ object Detector {
       val evtStr = record.value().toString
       val evtMap = JSON.parseFull(evtStr).getOrElse("").asInstanceOf[Map[String, Any]]
       val frame =   evtMap.getOrElse("data", List[Double]()).asInstanceOf[List[Double]]
-                      .map(_*ecgFrame.scale)
+                      .map(_*ECGframe.scale)
       val ts =      evtMap.getOrElse("ts", 0.0)
       val SeqInt =  evtMap.getOrElse("seqInt",0)
       val srcId  =  evtMap getOrElse("srcId","")
-      val codedFrame = ecgFrame.process(ecgFrame.windowSize, frame.toArray, clusters)
+      val codedFrame = ECGframe.process(ECGframe.windowSize, frame.toArray, clusters)
       val loss = (frame, codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
 
       //println(codedFrame.getClass.getSimpleName)
@@ -117,17 +109,14 @@ object Detector {
     })
 
     // Input parameters.
-    val inputTableId = "publicdata:samples.shakespeare"
-    val outputTableId = ":wordcount_dataset.wordcount_output"
-
-    // Write data back into a new BigQuery table.
-    // IndirectBigQueryOutputFormat discards keys, so set key to null. bellow
+    val inputTableId = null //"publicdata:samples.shakespeare"
+    val outputTableId = ":ecg.anomalies"  //:wordcount_dataset.wordcount_output"
 
 
     val save2db = events.map{ e =>
-    val word  = e._1.slice(0,10)
-    val count = e._3.asInstanceOf[Number].longValue
-    val jsonObject = new JSONObject(Map("word" -> word, "word_count" -> count))
+      val jsonObject = JsonHelpers.frame2json(e)
+      // bigquery
+      // IndirectBigQueryOutputFormat discards keys, so set key to null. bellow
       (null,jsonObject )
     }
     save2db.foreachRDD ( rdd => {
