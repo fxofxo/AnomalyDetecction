@@ -76,7 +76,7 @@ object BigQueryDB {
       conf.set("mapreduce.job.outputformat.class",
               classOf[IndirectBigQueryOutputFormat[_, _]].getName)
               // Truncate the table before writing output to allow multiple runs.
-              conf.set(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY, "WRITE_TRUNCATE")
+             // conf.set(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY, "WRITE_TRUNCATE")
     }
     conf
   }
