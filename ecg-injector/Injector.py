@@ -10,13 +10,13 @@ class FrameInjector:
     def __init__(self, id, nEventsbyFrame, evtTime, dataDir,
                  fileExt=".dat", evtLen=2, isDatabricks=False ):
         """
-        The events should be in binary file, each event is a interger of lenght evtlen
+        The events should be in binary file, each event is a integer of length evtlen
 
         nEventsbyFrame:   number f events that compuounts a frame
         evtTime:   Period (ms) of simple event ( evtTime * nFrames = FramePeriod)
         dir:       Where to find source event files
         fileExt:   file extension
-        evtLen:    2 by defoult (short)
+        evtLen:    2 by default (short)
         isDatabricks flag True if we are into a databrick notebook.
         """
         self.Id = id
@@ -65,7 +65,7 @@ class FrameInjector:
                     frame = events[i*self.nEventsbyFrame: (i+1)*self.nEventsbyFrame]
                     ts = time.time()
                     dict = {"ts": time.time(),
-                            "srcId": self.Id,
+                            "srcId": self.Id+fNAme,
                             "seqInt": i,                  # Sequencial integer to debug streaming
                             "data": frame.tolist()}
                     jsonFrame = json.dumps(dict)   # i is added to debug streaming

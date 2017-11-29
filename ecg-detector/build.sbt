@@ -11,8 +11,6 @@ version := "1.0"
 // https://mvnrepository.com/artifact/org.apache.spark/spark-core
 libraryDependencies += "org.apache.spark" % "spark-core_2.11" % "2.2.0"
 
-
-
 //libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.5.0" % "provided"
 
 //https://mvnrepository.com/artifact/org.apache.spark/spark-mllib
@@ -21,15 +19,17 @@ libraryDependencies += "org.apache.spark" % "spark-mllib_2.11" % "2.2.0" % "prov
 // https://mvnrepository.com/artifact/org.apache.spark/spark-streaming
 //libraryDependencies += "org.apache.spark" % "spark-streaming_2.11" % "2.2.0" % "provided"
 
-
 // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
 libraryDependencies += "org.apache.kafka" % "kafka-clients" % "1.0.0"
-
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-streaming-kafka-0-10
 //libraryDependencies += "org.apache.spark" % "spark-streaming-kafka-0-10_2.11" % "2.2.0" % "test"
 // Test seem to not work!!
 libraryDependencies += "org.apache.spark" % "spark-streaming-kafka-0-10_2.11" % "2.2.0"
+
+// https://mvnrepository.com/artifact/com.google.cloud.bigdataoss/bigquery-connector
+libraryDependencies += "com.google.cloud.bigdataoss" % "bigquery-connector" % "0.10.3-hadoop2"
+
 
 resolvers ++= Seq(
   "JBoss Repository" at "http://repository.jboss.org/nexus/content/repositories/releases/",
