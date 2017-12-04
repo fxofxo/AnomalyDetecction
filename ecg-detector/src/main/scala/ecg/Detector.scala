@@ -5,14 +5,10 @@
 * EXECUTION:
 * spark-submit --class ecg.Detector --packages org.apache.spark:spark-streaming-kafka-0-10_2.11:2.2.0  ecg-detector_2.11-1.0.jar
 */
-
-
 package ecg
 
 
-import fxo.utils.BigQueryDB
-
-
+import fxo.utils.{ BigQueryDB, Timeutils}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.clustering.KMeansModel
@@ -21,6 +17,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.util.parsing.json._
+import java.time.Instant
 
 object Detector {
   val bachTime = Seconds(20)
@@ -39,7 +36,6 @@ object Detector {
   }
 
 
-  //def convertToJson(record: (String, Any, Any, Any)) = ???
 
   def main(args: Array[String]): Unit = {
 
@@ -94,7 +90,7 @@ object Detector {
 
     var counter = 0
 
-    // log each event received..
+    // log to hdfs each event received..
     events.foreachRDD ( rdd => {
       // Following code is executed in the driver
       val evtTs = System.currentTimeMillis
@@ -104,14 +100,17 @@ object Detector {
         println("rdd is not empty: " + rdd.count + "||" + counter + "||")
        //----------------ends driver execution
         // following is a executor running code
-        //rdd.map( x => (x._1)).saveAsTextFile(outputPath+counter)   //this will overwrite for each rdd (bach of data)
+        val tic = System.currentTimeMillis()
+        val now = Instant.now()
+        val dateTimePath = Timeutils.datePath(now)
+        val filesPath= outputPath + dateTimePath._1  // splits path in minutes..
+        rdd.map( x => (x._1)).saveAsTextFile(filesPath)   //this will overwrite for each rdd (bach of data)
+        val tac = System.currentTimeMillis()
+        println("Write to file Took ms:" + (tac-tic))
       }
     })
 
     // Input parameters.
-    val inputTableId = null //"publicdata:samples.shakespeare"
-    val outputTableId = ":ecg.anomalies"  //:wordcount_dataset.wordcount_output"
-
 
     val save2db = events.map{ e =>
       val jsonObject = JsonHelpers.frame2json(e)
@@ -119,11 +118,14 @@ object Detector {
       // IndirectBigQueryOutputFormat discards keys, so set key to null. bellow
       (null,jsonObject )
     }
+    // BigqueryDB configuration
+    val inputTableId = null // We are not reading nothing from bigquery.
+    val outputTableId = ":ecg.anomalies"
+    val dbConf = BigQueryDB.createConnection(sc, inputTableId, outputTableId)
+
     save2db.foreachRDD ( rdd => {
-      val dbConf = BigQueryDB.createConnection(sc, inputTableId, outputTableId)
-      println("dnConf Created @" + System.currentTimeMillis )
-      // empty data raise an exception
       val tic = System.currentTimeMillis()
+      // empty data raise an exception
       if ( ! rdd.isEmpty()) {
         println("save2db not Empty")
         rdd.saveAsNewAPIHadoopDataset(dbConf)
@@ -131,17 +133,6 @@ object Detector {
       val tac = System.currentTimeMillis()
       println("Took ms:" + (tac-tic))
     })
-
-    /*events.foreachRDD { rdd =>
-
-      rdd.foreachPartition { pRecords =>
-        val dbConf = BigQueryDB.createConnection(sc, inputTableId, outputTableId)
-        pRecords.
-        pRecords.foreach(record =>  (null, convertToJson(("ll",3))).saveAsNewAPIHadoopDataset(dbConf))
-      }
-    }
-    */
-
     ssc.start()
     //ssc.awaitTerminationOrTimeout(60)
     ssc.awaitTermination()
