@@ -49,9 +49,6 @@ object BigQueryDB {
       BigQueryConfiguration.configureBigQueryInput(conf, fullInputTableId)
     }
 
-
-
-
     // Output parameters.
 
     // Temp output bucket that is deleted upon completion of job.

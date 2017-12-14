@@ -12,7 +12,7 @@ class FrameInjector:
         """
         The events should be in binary file, each event is a integer of length evtlen
 
-        nEventsbyFrame:   number f events that compuounts a frame
+        nEventsbyFrame:   number f events that compound a frame
         evtTime:   Period (ms) of simple event ( evtTime * nFrames = FramePeriod)
         dir:       Where to find source event files
         fileExt:   file extension
@@ -30,7 +30,7 @@ class FrameInjector:
         self.servers = None
         self.fileList = None
         self.kafkaProducer = None
-
+        self.sampleTick = 1/100   # till now the DB is recorded with 100 samples per second
         if isDatabricks:
             self.dataDir = "/dbfs/" + self.dataDir
         print(self.dataDir)
@@ -62,11 +62,12 @@ class FrameInjector:
                 print ("Some events will be skipped: (%d)"%rest)
                 print (nFrames)
                 for i in range(0, nFrames):
-                    frame = events[i*self.nEventsbyFrame: (i+1)*self.nEventsbyFrame]
+                    frame = events[i * self.nEventsbyFrame: (i+1)*self.nEventsbyFrame]
                     ts = time.time()
-                    dict = {"ts": time.time(),
-                            "srcId": self.Id+fNAme,
-                            "seqInt": i,                  # Sequencial integer to debug streaming
+                    frameTref = i * self.sampleTick * self.nEventsbyFrame
+                    dict = {"srcTs": time.time(),
+                            "srcId": self.Id+fName,
+                            "seqTref": frameTref,   # start ms of frame inside the file.
                             "data": frame.tolist()}
                     jsonFrame = json.dumps(dict)   # i is added to debug streaming
                     print (jsonFrame)
@@ -84,8 +85,8 @@ if __name__ == "__main__":
         #servers = ['10.132.0.3:9091']
         #servers = ['10.132.0.4:9091']
 
-        #inj = FrameInjector("testInj2", 1024, 1000, dataDir)
-        inj = FrameInjector("testInj2", 10, 1000, dataDir)
+        inj = FrameInjector("testInj2", 6000, 1000, dataDir)
+        #inj = FrameInjector("testInj2", 10, 1000, dataDir)
         inj.setKafkaTopic(topicName, servers)
         inj.startInjection(5)
         ## The producer need some time to send the message an the call seem to be asyncronous.
