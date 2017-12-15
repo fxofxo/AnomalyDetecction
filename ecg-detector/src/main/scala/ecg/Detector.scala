@@ -88,8 +88,8 @@ object Detector {
 
       //println(codedFrame.getClass.getSimpleName)
       //( srcId, SeqInt,ts,frame.toArray , codedFrame, frameError, 1)
-      val maxLoss = codedFrame.max
-      val csvLine = frame.mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
+      val maxLoss = loss.max
+      val csvLine = ";" + frame.mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
 
       val dateTimePath = Timeutils.datePath(evtTs)
       val timePathStr = dateTimePath._1  + dateTimePath._2
@@ -97,13 +97,13 @@ object Detector {
       } )
     //events.print()
 
+     val toSavedAgreggation = events.window(Seconds(180), Seconds(180))
+
 
     // log to hdfs each event received..
-    events.foreachRDD ( rdd => {
+    toSavedAgreggation.foreachRDD ( rdd => {
       // Following code is executed in the driver
-      evtTs = Instant.now()                     // get timestamp for each batch time.
-      println("****************************************************")
-      println("New bacth time rdd @_" + evtTs.toEpochMilli)
+
       if(!rdd.isEmpty()) {
 
         println("rdd is not empty: " + rdd.count )
@@ -116,9 +116,14 @@ object Detector {
          // add storagepath to tuples to refences among Bigquery Db and hdfs I
         val filesPath = outputPath + timePathStr  // splits path in minutes_ms
        //rdd.map( x => (x._1, x._2)).saveAsTextFile(filesPath)   //this will overwrite for each rdd (bach of data)
+
         rdd.saveAsTextFile(filesPath)
         val tac = System.currentTimeMillis()
         println("Write to file Took ms:" + (tac-tic))
+        evtTs = Instant.now()                     // get timestamp for each batch time.
+        println("****************************************************")
+        println("New ref time for next window time events time rdd @_" + evtTs.toEpochMilli)
+
       }
     })
 
@@ -146,6 +151,9 @@ object Detector {
       val tac = System.currentTimeMillis()
       println("Took ms:" + (tac-tic))
     })
+
+
+
     ssc.start()
     //ssc.awaitTerminationOrTimeout(60)
     ssc.awaitTermination()
