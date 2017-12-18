@@ -16,25 +16,26 @@ import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, Loca
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
-import scala.util.parsing.json._
 import java.time.Instant
 
 object Detector {
-  val bachTime = Seconds(20)
-  val modelFile = "/user/fsainz/data/out/clusters-a02.model"
-  val outputPath = "/user/fsainz/data/out/coded"
+  val bachTime = Seconds(10)
+
+
+
+  val outputPath = "/user/fsainz/data/out/coded/"
   val topics = "ecg"
   val topicsSet = topics.split(",").toSet
   val brokers ="10.132.0.3:9091,10.132.0.4:9091"
 
-  val WINDOW = 32
-  var windowingF  =  new Array[Double](WINDOW)   //differs of Array[Double](WINDOW) uahhh!!
+  val WINDOW = 40  //32 or 40
+  val WindowsPerFrame = 150 // 32 or 150
+  val anomalyTheshold = 100
 
-  for ( i <- 0 until WINDOW) {
-    val y = Math.sin(Math.PI * i / (WINDOW - 1.0));
-    windowingF(i) = y * y
-  }
 
+  val hdfsOutPath = "/user/fsainz/data/out/"
+  val patientID = "a02"
+  val ModelFileName = hdfsOutPath + "dict-" + "a02" + "_W" + WINDOW +".model"
 
 
   def main(args: Array[String]): Unit = {
@@ -59,61 +60,77 @@ object Detector {
       "auto.offset.reset" -> "latest",
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )
-    val clusters = KMeansModel.load(sc, modelFile)
+    val clusters = KMeansModel.load(sc, ModelFileName)
 
-
+    // kafka Raw Data
     val records = KafkaUtils.createDirectStream[String, String](
       ssc,
       LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](topicsSet, kafkaParams)
     )
+    // get data and reorder. ready to save
+
+    var evtTs :Instant = Instant.now() // it will be overrided for each batch
+
 
     val events = records.map( record => {
+
+      println("****************************************************")
+      println("Using TsNow" + evtTs.toEpochMilli )
       val evtStr = record.value().toString
-      val evtMap = JSON.parseFull(evtStr).getOrElse("").asInstanceOf[Map[String, Any]]
-      val frame =   evtMap.getOrElse("data", List[Double]()).asInstanceOf[List[Double]]
-                      .map(_*ECGframe.scale)
-      val ts =      evtMap.getOrElse("ts", 0.0)
-      val SeqInt =  evtMap.getOrElse("seqInt",0)
-      val srcId  =  evtMap getOrElse("srcId","")
+
+      val( srcId, srcTs, seqTref, noscaledframe)  =  JsonHelpers.json2list(evtStr) //JsonHelpers.json2list(evtStr)
+
+     //   .map(_ * ECGframe.scale)
+      val frame = noscaledframe.map( _ * ECGframe.scale)
       val codedFrame = ECGframe.process(ECGframe.windowSize, frame.toArray, clusters)
       val loss = (frame, codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
 
       //println(codedFrame.getClass.getSimpleName)
       //( srcId, SeqInt,ts,frame.toArray , codedFrame, frameError, 1)
-      val csvLine = frame.mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
+      val maxLoss = loss.max
+      val csvLine = ";" + frame.mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
 
-      //( frame.slice(0,10), codedFrame.slice(0,10).toList, loss.slice(0,10), frame.length, srcId, SeqInt, ts )
-      (csvLine , srcId,ts, SeqInt)
+      val dateTimePath = Timeutils.datePath(evtTs)
+      val timePathStr = dateTimePath._1  + dateTimePath._2
+       ( srcId, srcTs, seqTref, maxLoss, timePathStr,csvLine)
       } )
     //events.print()
 
-    var counter = 0
+     val toSavedAgreggation = events.window(Seconds(180), Seconds(180))
+
 
     // log to hdfs each event received..
-    events.foreachRDD ( rdd => {
+    toSavedAgreggation.foreachRDD ( rdd => {
       // Following code is executed in the driver
-      val evtTs = System.currentTimeMillis
-      println("hello events rdd @_" + evtTs)
+
       if(!rdd.isEmpty()) {
-        counter += 1         //using this from
-        println("rdd is not empty: " + rdd.count + "||" + counter + "||")
+
+        println("rdd is not empty: " + rdd.count )
        //----------------ends driver execution
         // following is a executor running code
         val tic = System.currentTimeMillis()
-        val now = Instant.now()
-        val dateTimePath = Timeutils.datePath(now)
-        val filesPath= outputPath + dateTimePath._1  // splits path in minutes..
-        rdd.map( x => (x._1)).saveAsTextFile(filesPath)   //this will overwrite for each rdd (bach of data)
+        println("-----------------------------------------------------------------")
+        val dateTimePath = Timeutils.datePath(evtTs)
+        val timePathStr = dateTimePath._1  + dateTimePath._2
+         // add storagepath to tuples to refences among Bigquery Db and hdfs I
+        val filesPath = outputPath + timePathStr  // splits path in minutes_ms
+       //rdd.map( x => (x._1, x._2)).saveAsTextFile(filesPath)   //this will overwrite for each rdd (bach of data)
+
+        rdd.saveAsTextFile(filesPath)
         val tac = System.currentTimeMillis()
         println("Write to file Took ms:" + (tac-tic))
+        evtTs = Instant.now()                     // get timestamp for each batch time.
+        println("****************************************************")
+        println("New ref time for next window time events time rdd @_" + evtTs.toEpochMilli)
+
       }
     })
 
-    // Input parameters.
+   // Save to Big Query only anomalies
 
-    val save2db = events.map{ e =>
-      val jsonObject = JsonHelpers.frame2json(e)
+    val save2db = events.filter(e => e._4 > anomalyTheshold ).map{ e =>
+      val jsonObject = JsonHelpers.list2json(e)
       // bigquery
       // IndirectBigQueryOutputFormat discards keys, so set key to null. bellow
       (null,jsonObject )
@@ -125,6 +142,7 @@ object Detector {
 
     save2db.foreachRDD ( rdd => {
       val tic = System.currentTimeMillis()
+
       // empty data raise an exception
       if ( ! rdd.isEmpty()) {
         println("save2db not Empty")
@@ -133,6 +151,9 @@ object Detector {
       val tac = System.currentTimeMillis()
       println("Took ms:" + (tac-tic))
     })
+
+
+
     ssc.start()
     //ssc.awaitTerminationOrTimeout(60)
     ssc.awaitTermination()

@@ -8,11 +8,12 @@ object ECGframe {
   // CLass primary constructor
   // val STEP = 2
   // val SAMPLES = 200000
+  //val samplesPerSecond = 100
   val scale: Double = 1 / 200.0 // Mv
   //  val rootDir = "FileStore/fxo/ted/"
 
 
-  val windowSize = 32
+  val windowSize = 40
   var windowingF  =  new Array[Double](windowSize)   //differs of Array[Double](WINDOW) uahhh!!
 
   for ( i <- 0 until windowSize) {
@@ -21,16 +22,14 @@ object ECGframe {
   }
 
   def process ( wSize: Int, frame : Array[Double] , model:KMeansModel) : Array[Double] = {
-
     /**
       * frame:  frame items should be a scaled input signal
       */
 
     // Split frame in WINDOW size windows
     val frameLength = frame.length
-
-    assert( frameLength % wSize == 0 )  // should throws a exception if not
-
+    // should throws a exception if not
+    assert( frameLength % wSize == 0 , " Received Frame length(" + frameLength +") should be multiple of window Size("+ wSize+")")
     val signalWindows = scala.collection.mutable.ArrayBuffer.empty[Array[Double]]
     val codecWindows = scala.collection.mutable.ArrayBuffer.empty[Array[Double]]
     val ret = scala.collection.mutable.ArrayBuffer.empty[Double]
