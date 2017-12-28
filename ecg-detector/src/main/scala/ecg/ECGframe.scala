@@ -13,7 +13,7 @@ object ECGframe {
   //  val rootDir = "FileStore/fxo/ted/"
 
 
-  val windowSize = 40
+  val windowSize = 120
   var windowingF  =  new Array[Double](windowSize)   //differs of Array[Double](WINDOW) uahhh!!
 
   for ( i <- 0 until windowSize) {
@@ -60,22 +60,26 @@ object ECGframe {
       if (i == 0) {
         half1 = codecWindows(i).slice(0,wSize/2)
         half2 = half1
+        var r = (half1 , half2).zipped.map(_+_)   // sum halfs
+        //ret ++= r
+        print(">")
       }
       else {
-        print(","+i+",")
+        print("*")
         half1= codecWindows(i-1).slice(wSize/2,wSize)
         half2= codecWindows(i).slice(0,wSize/2)
-
+        var r = (half1 , half2).zipped.map(_+_)   // sum halfs
+        ret ++= r
       }
-      var r = (half1 , half2).zipped.map(_+_)   // sum halfs
-      ret ++= r
+
       // last half window
       if ( i == (nWindows*2) -2 ) {
         half1= codecWindows(i).slice(wSize/2,wSize)
         half2= half1
-        print ("*************LAST + " + i)
-        r = (half1 , half2).zipped.map(_+_)   // sum halfs
-        ret ++= r
+        print ("<")
+        var r = (half1 , half2).zipped.map(_+_)   // sum halfs
+        //ret ++= r
+
       }
     }
     ret.toArray

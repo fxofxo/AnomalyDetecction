@@ -28,14 +28,16 @@ object Detector {
   val topicsSet = topics.split(",").toSet
   val brokers ="10.132.0.3:9091,10.132.0.4:9091"
 
-  val WINDOW = 40  //32 or 40
+  val WINDOW = ECGframe.windowSize  //120 32 or 40
   val WindowsPerFrame = 150 // 32 or 150
-  val anomalyTheshold = 100
+  val anomalyTheshold =   .2
 
 
   val hdfsOutPath = "/user/fsainz/data/out/"
-  val patientID = "a02"
-  val ModelFileName = hdfsOutPath + "dict-" + "a02" + "_W" + WINDOW +".model"
+  val patientID = "105s1"
+  val ModelFileName = hdfsOutPath + "dict-" + patientID +  "_W" + WINDOW +".LEmodel"
+
+
 
 
   def main(args: Array[String]): Unit = {
@@ -84,12 +86,19 @@ object Detector {
      //   .map(_ * ECGframe.scale)
       val frame = noscaledframe.map( _ * ECGframe.scale)
       val codedFrame = ECGframe.process(ECGframe.windowSize, frame.toArray, clusters)
+     /*
       val loss = (frame, codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
+      */
+      /* There is an error coding frames borders, discard it at the moment*/
+
+      val p1 = WINDOW / 2
+      val p2 = frame.length - p1
+      val loss = (frame.slice(p1, p2), codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
 
       //println(codedFrame.getClass.getSimpleName)
       //( srcId, SeqInt,ts,frame.toArray , codedFrame, frameError, 1)
       val maxLoss = loss.max
-      val csvLine = ";" + frame.mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
+      val csvLine = ";" + frame.slice(p1, p2).mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
 
       val dateTimePath = Timeutils.datePath(evtTs)
       val timePathStr = dateTimePath._1  + dateTimePath._2
