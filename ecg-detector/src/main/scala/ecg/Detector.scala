@@ -80,16 +80,20 @@ object Detector {
       println("****************************************************")
       println("Using TsNow" + evtTs.toEpochMilli )
       val evtStr = record.value().toString
-
+      // split json record on its fields
+      //println(evtStr)
       val( srcId, srcTs, seqTref, noscaledframe)  =  JsonHelpers.json2list(evtStr) //JsonHelpers.json2list(evtStr)
-
-     //   .map(_ * ECGframe.scale)
+      // scale the ecg data
       val frame = noscaledframe.map( _ * ECGframe.scale)
+      // coded ecg data using kmeans  dictionary
       val codedFrame = ECGframe.process(ECGframe.windowSize, frame.toArray, clusters)
-     /*
+
+      // get loss error.
+      /* There is an error coding frames borders, discard it at the moment*/
+      /*
       val loss = (frame, codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
       */
-      /* There is an error coding frames borders, discard it at the moment*/
+
 
       val p1 = WINDOW / 2
       val p2 = frame.length - p1

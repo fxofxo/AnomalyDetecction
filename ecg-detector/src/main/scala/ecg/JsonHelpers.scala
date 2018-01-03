@@ -8,14 +8,14 @@ object JsonHelpers {
     // frame  (srcId, srcTref , qTs, SeqInt,maxloss,csvLine )
     val srcId = frame._1
     val srcTs = frame._2
-    val seqTref = frame._3
+    val frameRef = frame._3
     val maxLoss = frame._4
     val timePathStr = frame._5
     val data = frame._6
     val jsonObject = new JSONObject(Map(
       "srcId" -> srcId,
       "srcTs" -> srcTs,
-      "seqTref" -> seqTref,
+      "frameRef" -> frameRef,
       "maxLoss" -> maxLoss,
       "timePathRef" -> timePathStr,
       "dataSlice" -> data.slice(0,60)  // save only part of the data just to easy debugging
@@ -29,9 +29,9 @@ object JsonHelpers {
 
     val srcId = evtMap.getOrElse("srcId", "").asInstanceOf[String]
     val srcTs = evtMap.getOrElse("srcTs", 0.0).asInstanceOf[Number].doubleValue
-    val seqTref = evtMap.getOrElse("seqTref", 0.0).asInstanceOf[Number].doubleValue
+    val frameRef = evtMap.getOrElse("frameRef", 0.0).asInstanceOf[Number].doubleValue
     val frame = evtMap.getOrElse("data", List[Double]()).asInstanceOf[List[Double]]
 
-    (srcId, srcTs, seqTref, frame)
+    (srcId, srcTs, frameRef, frame)
   }
 }

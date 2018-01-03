@@ -29,7 +29,7 @@ class FrameInjector:
         self.servers = None
         self.fileList = None
         self.kafkaProducer = None
-        self.sampleTick = 1/100   # till now the DB is recorded with 100 samples per second
+       # self.sampleTick = 1/100   # till now the DB is recorded with 100 samples per second
         if isDatabricks:
             self.dataDir = "/dbfs/" + self.dataDir
         print(self.dataDir)
@@ -63,10 +63,10 @@ class FrameInjector:
                 for i in range(0, nFrames):
                     frame = events[i * self.nEventsbyFrame: (i+1)*self.nEventsbyFrame]
                     ts = time.time()
-                    frameTref = i * self.sampleTick * self.nEventsbyFrame
+                    frameRef = i * self.nEventsbyFrame
                     dict = {"srcTs": time.time(),
                             "srcId": self.Id+fName,
-                            "seqTref": frameTref,   # start ms of frame inside the file.
+                            "frameRef": frameRef,   # start ms of frame inside the file.
                             "data": frame.tolist()}
                     jsonFrame = json.dumps(dict)   # i is added to debug streaming
                     print (jsonFrame)
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         #servers = ['10.132.0.3:9091']
         #servers = ['10.132.0.4:9091']
         windowSize = 120
-        windowsbyFrame = 30
+        windowsbyFrame = 15
         nEvents = windowSize * windowsbyFrame
         delay = 1
         inj = FrameInjector("testInj2", nEventsbyFrame = nEvents, dataDir = path)
