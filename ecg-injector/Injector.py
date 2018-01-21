@@ -8,7 +8,7 @@ from time import sleep
 
 class FrameInjector:
     def __init__(self, id, nEventsbyFrame,  dataDir,
-                 fileExt=".dat", evtLen=2, isDatabricks=False ):
+                 fileExt=".dat", scale = 200,  isDatabricks=False ):
         """
         The events should be in binary file, each event is a integer of length evtlen
 
@@ -16,14 +16,14 @@ class FrameInjector:
 
         dir:       Where to find source event files
         fileExt:   file extension
-        evtLen:    2 by default (short)
+        bytesperSample:    2 by default (short) byte per event
         isDatabricks flag True if we are into a databrick notebook.
         """
         self.Id = id
         self.nEventsbyFrame = nEventsbyFrame
         self.dataDir = dataDir
         self.fileExt = fileExt
-        self.evtLen = evtLen
+        self.scale = scale
         self.isDatabricks = isDatabricks
         self.topic = None
         self.servers = None
@@ -51,7 +51,8 @@ class FrameInjector:
         for fName in self.fileList:
             with open(fName, "rb") as f:
                 print(fName)
-                events = np.fromfile(f, dtype="<i2")   # "<i2" little endian short. Read all file in memory, be carefull.
+                # "<i2" little endian short. Read all file in memory, be carefull.
+                events = np.fromfile(f, dtype="<i2")
                 maxFrames = len(events)//self.nEventsbyFrame
                 if nFrames == 0:
                     nFrames = maxFrames
@@ -67,7 +68,8 @@ class FrameInjector:
                     dict = {"srcTs": time.time(),
                             "srcId": self.Id+fName,
                             "frameRef": frameRef,   # start ms of frame inside the file.
-                            "data": frame.tolist()}
+                            "data": frame.tolist(),
+                            "scale": self.scale}
                     jsonFrame = json.dumps(dict)   # i is added to debug streaming
                     print (jsonFrame)
                     self.kafkaProducer.send(self.topic, bytes( jsonFrame,"UTF-8"))

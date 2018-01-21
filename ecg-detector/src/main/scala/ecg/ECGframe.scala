@@ -5,15 +5,12 @@ import org.apache.spark.mllib.linalg.Vectors
 
 object ECGframe {
 
-  // CLass primary constructor
-  // val STEP = 2
-  // val SAMPLES = 200000
-  //val samplesPerSecond = 100
+
   val scale: Double = 1 / 200.0 // Mv
   //  val rootDir = "FileStore/fxo/ted/"
 
 
-  val windowSize = 120
+  val windowSize = 40 // 120 for 105s1
   var windowingF  =  new Array[Double](windowSize)   //differs of Array[Double](WINDOW) uahhh!!
 
   for ( i <- 0 until windowSize) {

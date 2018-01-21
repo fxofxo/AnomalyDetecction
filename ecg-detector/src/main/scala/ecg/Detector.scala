@@ -18,7 +18,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import java.time.Instant
 
-object Detector {
+object  Detector {
   val bachTime = Seconds(10)
 
 
@@ -28,14 +28,19 @@ object Detector {
   val topicsSet = topics.split(",").toSet
   val brokers ="10.132.0.3:9091,10.132.0.4:9091"
 
-  val WINDOW = ECGframe.windowSize  //120 32 or 40
-  val WindowsPerFrame = 150 // 32 or 150
-  val anomalyTheshold =   .2
+  val wSize = ECGframe.windowSize  //120 32 or 40
+
+  val patientID = "a02"  //"105s1"
+  val WindowsPerFrame = 30 // 32 or 150
+  val anomalyTheshold =   1
+  val trStep = (wSize / 10).toInt
+
+  val saveInterval = Seconds(60)
 
 
   val hdfsOutPath = "/user/fsainz/data/out/"
-  val patientID = "105s1"
-  val ModelFileName = hdfsOutPath + "dict-" + patientID +  "_W" + WINDOW +".LEmodel"
+
+  val ModelFileName = hdfsOutPath + "dict-" + patientID +  "_W" + wSize + "-" + trStep +".LE.model"
 
 
 
@@ -67,8 +72,9 @@ object Detector {
     // kafka Raw Data
     val records = KafkaUtils.createDirectStream[String, String](
       ssc,
-      LocationStrategies.PreferConsistent,
-      ConsumerStrategies.Subscribe[String, String](topicsSet, kafkaParams)
+     //LocationStrategies.PreferConsistent,
+      LocationStrategies.PreferBrokers, // use it to get partition leader distribution.
+           ConsumerStrategies.Subscribe[String, String](topicsSet, kafkaParams)
     )
     // get data and reorder. ready to save
 
@@ -95,9 +101,9 @@ object Detector {
       */
 
 
-      val p1 = WINDOW / 2
+      val p1 = wSize / 2
       val p2 = frame.length - p1
-      val loss = (frame.slice(p1, p2), codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
+      val loss = (frame.slice(p1, p2), codedFrame).zipped.map(_-_)   // subtract coded frame from original one
 
       //println(codedFrame.getClass.getSimpleName)
       //( srcId, SeqInt,ts,frame.toArray , codedFrame, frameError, 1)
@@ -110,7 +116,7 @@ object Detector {
       } )
     //events.print()
 
-     val toSavedAgreggation = events.window(Seconds(180), Seconds(180))
+     val toSavedAgreggation = events.window( saveInterval, saveInterval)
 
 
     // log to hdfs each event received..
@@ -148,6 +154,8 @@ object Detector {
       // IndirectBigQueryOutputFormat discards keys, so set key to null. bellow
       (null,jsonObject )
     }
+
+
     // BigqueryDB configuration
     val inputTableId = null // We are not reading nothing from bigquery.
     val outputTableId = ":ecg.anomalies"
@@ -158,11 +166,11 @@ object Detector {
 
       // empty data raise an exception
       if ( ! rdd.isEmpty()) {
-        println("save2db not Empty")
+        println("\nsave2db not Empty")
         rdd.saveAsNewAPIHadoopDataset(dbConf)
       }
       val tac = System.currentTimeMillis()
-      println("Took ms:" + (tac-tic))
+      println("\nTook ms:" + (tac-tic))
     })
 
 
