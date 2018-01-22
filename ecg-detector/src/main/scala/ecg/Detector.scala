@@ -19,8 +19,8 @@ import org.apache.spark.{SparkConf, SparkContext}
 import java.time.Instant
 
 object  Detector {
-  val bachTime = Seconds(10)
-
+  val bachTime = Seconds(3)
+  val saveInterval = Seconds(120)
 
 
   val outputPath = "/user/fsainz/data/out/coded/"
@@ -30,12 +30,12 @@ object  Detector {
 
   val wSize = ECGframe.windowSize  //120 32 or 40
 
-  val patientID = "a02"  //"105s1"
-  val WindowsPerFrame = 30 // 32 or 150
+  val patientID = "105"  //"105s1"
+
   val anomalyTheshold =   1
   val trStep = (wSize / 10).toInt
 
-  val saveInterval = Seconds(60)
+
 
 
   val hdfsOutPath = "/user/fsainz/data/out/"
@@ -83,8 +83,13 @@ object  Detector {
 
     val events = records.map( record => {
 
-      println("****************************************************")
-      println("Using TsNow" + evtTs.toEpochMilli )
+      println(" \n F ======================================================================")
+
+      val dateTimePath = Timeutils.datePath(evtTs)
+      //val timePathStr = dateTimePath._1  + dateTimePath._2
+      val timePathStr = dateTimePath._1
+      print("\n Will be Save on path: " + timePathStr + "(" + evtTs.toEpochMilli +")" )
+
       val evtStr = record.value().toString
       // split json record on its fields
       //println(evtStr)
@@ -100,7 +105,6 @@ object  Detector {
       val loss = (frame, codedFrame).zipped.map(_-_)   // sustract original codded frame from original one
       */
 
-
       val p1 = wSize / 2
       val p2 = frame.length - p1
       val loss = (frame.slice(p1, p2), codedFrame).zipped.map(_-_)   // subtract coded frame from original one
@@ -110,10 +114,12 @@ object  Detector {
       val maxLoss = loss.max
       val csvLine = ";" + frame.slice(p1, p2).mkString(",") + ";" + codedFrame.mkString(",") + ";" + loss.mkString(",") + ";"
 
-      val dateTimePath = Timeutils.datePath(evtTs)
-      val timePathStr = dateTimePath._1  + dateTimePath._2
+
        ( srcId, srcTs, seqTref, maxLoss, timePathStr,csvLine)
-      } )
+      } )  // records map = events
+
+
+
     //events.print()
 
      val toSavedAgreggation = events.window( saveInterval, saveInterval)
@@ -125,7 +131,7 @@ object  Detector {
 
       if(!rdd.isEmpty()) {
 
-        println("rdd is not empty: " + rdd.count )
+        println("There are frames to save : " + rdd.count )
        //----------------ends driver execution
         // following is a executor running code
         val tic = System.currentTimeMillis()

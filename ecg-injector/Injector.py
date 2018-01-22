@@ -43,7 +43,7 @@ class FrameInjector:
         self.servers = servers
         self.kafkaProducer = KafkaProducer(bootstrap_servers=servers)
 
-    def startInjection(self, nFrames = 0, evtTime = 1):
+    def startInjection(self, nFrames = 0, delay = 1):
         """
         if nFrames is not 0 then it will stop when nframes limit is reached, or data is run out.
         """
@@ -87,13 +87,13 @@ if __name__ == "__main__":
         #servers = ['10.132.0.3:9091']
         #servers = ['10.132.0.4:9091']
         windowSize = 120
-        windowsbyFrame = 15
+        windowsbyFrame = 15    # is 5s for arrithmia db
         nEvents = windowSize * windowsbyFrame
-        delay = 1
+
         inj = FrameInjector("testInj2", nEventsbyFrame = nEvents, dataDir = path)
         #inj = FrameInjector("testInj2", 10, dataDir)
         inj.setKafkaTopic(topicName, servers)
-        inj.startInjection(nFrames=0, evtTime=1)
+        inj.startInjection(nFrames=0, delay = .1)
 
         ## The producer need some time to send the message an the call seem to be asyncronous.
         # so we need wait before quit the programs.
