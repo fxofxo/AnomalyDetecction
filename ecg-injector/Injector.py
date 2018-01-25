@@ -1,5 +1,6 @@
 import glob
 import time
+import os
 import numpy as np
 import json
 from kafka import KafkaProducer
@@ -12,7 +13,7 @@ class FrameInjector:
         """
         The events should be in binary file, each event is a integer of length evtlen
 
-        nEventsbyFrame:   number f events that compound a frame
+        nEventsbyFrame:   number  events that compound a frame
 
         dir:       Where to find source event files
         fileExt:   file extension
@@ -51,30 +52,51 @@ class FrameInjector:
         for fName in self.fileList:
             with open(fName, "rb") as f:
                 print(fName)
-                # "<i2" little endian short. Read all file in memory, be carefull.
-                events = np.fromfile(f, dtype="<i2")
-                maxFrames = len(events)//self.nEventsbyFrame
+                # format 212 . 12 bit per signal.
+                # in arrithmia DB two signals per event so 3 byte per record.
+
+                frameBytes = self.nEventsbyFrame * 3
+                f.seek(0, os.SEEK_END)
+                filelength = f.tell()
+                f.seek(0, os.SEEK_SET)
+
+                maxFrames = filelength // frameBytes
                 if nFrames == 0:
                     nFrames = maxFrames
                 else:
                     nFrames = min(maxFrames,nFrames)
-                rest = len(events) % self.nEventsbyFrame
+                rest = filelength % frameBytes
                 print ("Some events could be skipped: (%d)"%rest)
                 print (nFrames)
+                u4mask = 0xf0
+                l4mask = 0x0f
+
                 for i in range(0, nFrames):
-                    frame = events[i * self.nEventsbyFrame: (i+1)*self.nEventsbyFrame]
+                    buff = f.read(frameBytes)
+                    s1 = []
+                    s2 = []
+                    for ridx in range(self.nEventsbyFrame):
+                        p = ridx*3
+                        r = buff[p:p+3]
+                        a = ( ((r[1] & l4mask)) << 8 )+ r[0]
+                        b = ( (r[1] & u4mask )<< 4) + r[2]
+                        s1.append(a)
+                        s2.append(b)
+                    frame = s1
+                    print(len(frame))
                     ts = time.time()
                     frameRef = i * self.nEventsbyFrame
                     dict = {"srcTs": time.time(),
                             "srcId": self.Id+fName,
                             "frameRef": frameRef,   # start ms of frame inside the file.
-                            "data": frame.tolist(),
+                            "data": frame,
                             "scale": self.scale}
                     jsonFrame = json.dumps(dict)   # i is added to debug streaming
-                    print (jsonFrame)
+                    ##print (jsonFrame)
                     self.kafkaProducer.send(self.topic, bytes( jsonFrame,"UTF-8"))
                     print("frame:%d",i)
-                    sleep(evtTime)
+                    sleep(delay)
+
 
 if __name__ == "__main__":
     """ run injector instance test
@@ -82,7 +104,7 @@ if __name__ == "__main__":
     if __name__ == "__main__":
         print( "runing")
         path = "./data/"
-        topicName = "ecg"
+        topicName = "ecg-frame"
         servers = ['10.132.0.3:9091', '10.132.0.4:9091']
         #servers = ['10.132.0.3:9091']
         #servers = ['10.132.0.4:9091']

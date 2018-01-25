@@ -76,7 +76,7 @@ object ECGframe {
         print(">")
       }
       else {
-        print("*")
+        //print("*")
         half1= codecWindows(i-1).slice(wSize/2,wSize)
         half2= codecWindows(i).slice(0,wSize/2)
         var r = (half1 , half2).zipped.map(_+_)   // sum halfs
