@@ -14,7 +14,7 @@ if table Id are null ignore the corresponding configurations
 
  */
 
-object BigQueryDB {
+object BigQueryHelper {
 
   var c = 3
   private def addProjectId( conf : Configuration, inStr : String): Unit = {
@@ -26,7 +26,7 @@ object BigQueryDB {
     or internal (to the project) DB in the form  "datasetname:tableName" in this case
     projectId will be added to form full qualified ID
    */
-  def createConnection(sc: org.apache.spark.SparkContext,
+  def createConf(sc: org.apache.spark.SparkContext,
                        inputTableId: String,
                        outputTableId: String ): Configuration = {
 

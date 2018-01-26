@@ -8,7 +8,7 @@
 package ecg
 
 
-import fxo.utils.{ BigQueryDB, Timeutils}
+import fxo.utils.{BigQueryHelper, Timeutils}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.clustering.KMeansModel
@@ -20,8 +20,8 @@ import java.time.Instant
 
 object Detector {
   val bachTime = Seconds(2)
-  val saveInterval = Seconds(120)
-
+  val save2HdfsInterval = Seconds(8)
+  val save2BigQueryInterval = Seconds(4)// be careful write to db is a costly operation
 
   val outputPath = "/user/fsainz/data/out/coded/"
   val topics = "ecg-frame"
@@ -138,11 +138,11 @@ object Detector {
 
     //events.print()
 
-     val toSavedAgreggation = events.window( saveInterval, saveInterval)
+     val toHDFSAgreggation = events.window( save2HdfsInterval, save2HdfsInterval)
 
 
     // log to hdfs each event received..
-    toSavedAgreggation.foreachRDD ( rdd => {
+    toHDFSAgreggation.foreachRDD ( rdd => {
       // Following code is executed in the driver
 
       if(!rdd.isEmpty()) {
@@ -176,11 +176,13 @@ object Detector {
       (null,jsonObject )
     }
 
+// Write to bigquery don't support windowing aggregation ??¿
+   // val toBigQueryAgreggation = save2db.window( save2BigQueryInterval, save2BigQueryInterval)
 
     // BigqueryDB configuration
     val inputTableId = null // We are not reading nothing from bigquery.
     val outputTableId = ":ecg.anomalies"
-    val dbConf = BigQueryDB.createConnection(sc, inputTableId, outputTableId)
+    val dbConf = BigQueryHelper.createConf(sc, inputTableId, outputTableId)
 
     save2db.foreachRDD ( rdd => {
       val tic = System.currentTimeMillis()
@@ -194,7 +196,6 @@ object Detector {
       }
 
     })
-
 
 
     ssc.start()
