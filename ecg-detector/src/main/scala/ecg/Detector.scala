@@ -30,7 +30,7 @@ object Detector {
 
   val wSize = ECGframe.windowSize  //120 32 or 40
 
-  val anomalyTheshold =    .30
+  val anomalyTheshold =    .9
   val trStep = (wSize / 10).toInt
 
   val hdfsOutPath = "/user/fsainz/data/out/"
